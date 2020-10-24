@@ -1,30 +1,144 @@
-import React from 'react';
-import { View, Button, StyleSheet } from 'react-native';
-import { useAuth } from '../../contexts/auth';
+import React, { useCallback, useRef, useContext } from 'react';
+import Constants from 'expo-constants';
+import { Image, KeyboardAvoidingView, ScrollView, Platform, View, TextInput, Alert } from 'react-native';
 
-const styles = StyleSheet.create({
-    container: { 
-        flex: 1, 
-        justifyContent: 'center',
-        alignItems: 'center',
-    }
-});
+import Icon from 'react-native-vector-icons/Feather';
+import { useNavigation } from '@react-navigation/native';
+
+import { ThemeContext } from 'styled-components'
+
+import { Form } from '@unform/mobile'
+import { FormHandles } from '@unform/core'
+import * as Yup from 'yup'
+
+import { useAuth } from '../../hooks/auth';
+
+import getValidationErrors from '../../utils/getValidationErrors';
+
+import Input from '../../components/Input';
+import Button from '../../components/Button';
+
+import { Container, Title, ForgotPassword, ForgotPasswordText, CreateAccountButton, CreateAccountButtonText } from './styles';
+
+interface SignInFormData {
+  email: string
+  password: string
+}
 
 const SignIn: React.FC = () => {
-    const { signed, user, signIn } = useAuth();
+  const formRef = useRef<FormHandles>(null)
+  const passwordInputRef = useRef<TextInput>(null)
 
-    console.log(signed, user);
+  const navigation = useNavigation()
 
-    function handleSignIn() {
-        console.log('Logar');
-        signIn();
-    }
+  const { signIn } = useAuth()
 
-    return (
-        <View style={styles.container} >
-            <Button title="Sign in" onPress={handleSignIn} />
-        </View>
-    ) 
-};
+  const handleSignIn = useCallback(
+    async (data: SignInFormData) => {
+      try {
+        formRef.current?.setErrors({})
+
+        const schema = Yup.object().shape({
+          email: Yup.string()
+            .required('E-mail obrigatório')
+            .email('Digite um e-mail válido'),
+          password: Yup.string().required('Senha obrigatória'),
+        })
+
+        await schema.validate(data, {
+          abortEarly: false,
+        })
+
+        await signIn({
+          email: data.email,
+          password: data.password,
+        })
+      } catch (err) {
+        if (err instanceof Yup.ValidationError) {
+          const errors = getValidationErrors(err)
+
+          formRef.current?.setErrors(errors)
+
+          return
+        }
+
+        Alert.alert(
+          'Erro na autenticação',
+          'Ocorreu um erro ao fazer login, cheque as credenciais',
+        )
+      }
+    },
+    [signIn],
+  )
+
+  const { logo } = useContext(ThemeContext)
+
+  return (
+    <>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flex: 1 }}
+        >
+          <Container style={{ paddingTop: 50 + Constants.statusBarHeight }}>
+            <Image source={logo} />
+
+            <View>
+              <Title>Faça seu logon</Title>
+            </View>
+
+            <Form ref={formRef} onSubmit={handleSignIn}>
+              <Input
+                autoCorrect={false}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                name="email"
+                icon="mail"
+                placeholder="E-mail"
+                returnKeyType="next"
+                onSubmitEditing={() => {
+                  passwordInputRef.current?.focus()
+                }}
+              />
+
+              <Input
+                ref={passwordInputRef}
+                name="password"
+                icon="lock"
+                placeholder="Senha"
+                secureTextEntry
+                returnKeyType="send"
+                onSubmitEditing={() => {
+                  formRef.current?.submitForm()
+                }}
+              />
+            </Form>
+            <Button
+              onPress={() => {
+                formRef.current?.submitForm()
+              }}
+            >
+              Entrar
+            </Button>
+
+            {/* eslint-disable-next-line @typescript-eslint/no-empty-function */}
+            <ForgotPassword onPress={() => {}}>
+              <ForgotPasswordText>Esqueci minha senha</ForgotPasswordText>
+            </ForgotPassword>
+          </Container>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <CreateAccountButton onPress={() => navigation.navigate('SignUp')}>
+        <Icon name="log-in" size={20} color="#189edb" />
+        <CreateAccountButtonText>Criar uma conta</CreateAccountButtonText>
+      </CreateAccountButton>
+    </>
+  )
+}
 
 export default SignIn;

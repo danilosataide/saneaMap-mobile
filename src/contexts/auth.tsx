@@ -1,5 +1,4 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-// import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-community/async-storage';
 import * as auth from '../services/auth'; 
 import api from '../services/api';
@@ -57,14 +56,6 @@ export const AuthProvider: React.FC = ({ children }) => {
             setUser(null);
         });
     }
-
-    // if(loading){
-    //     return (
-    //         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    //             <ActivityIndicator size="large" color="#656" />
-    //         </View>
-    //     );
-    // }
 
     return (
         <AuthContext.Provider value={{ signed: !!user, user, loading, signIn, signOut }}>
